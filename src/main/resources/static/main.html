@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Cat Photo Upload</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background: #fdf2f8;
+            min-height: 100vh;
+            padding-top: 100px;
+        }
+
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 76px;
+            background: white;
+            box-shadow: 0 4px 18px rgba(0,0,0,0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 36px;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #db2777;
+        }
+
+        nav {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .menu-btn {
+            width: auto;
+            padding: 10px 18px;
+            background: #fce7f3;
+            color: #be185d;
+            border-radius: 999px;
+            font-weight: bold;
+        }
+
+        .menu-btn:hover {
+            background: #fbcfe8;
+        }
+
+        .profile-btn {
+            width: 42px;
+            height: 42px;
+            padding: 0;
+            border-radius: 50%;
+            background: #db2777;
+            font-size: 18px;
+        }
+
+        .logout-btn {
+            width: auto;
+            padding: 10px 18px;
+            background: #111827;
+            border-radius: 999px;
+        }
+
+        .logout-btn:hover {
+            background: #374151;
+        }
+
+        .page {
+            display: flex;
+            justify-content: center;
+            padding: 30px;
+        }
+
+        .card {
+            width: 520px;
+            background: white;
+            padding: 35px;
+            border-radius: 22px;
+            box-shadow: 0 12px 35px rgba(0,0,0,0.12);
+            text-align: center;
+        }
+
+        h1 {
+            color: #db2777;
+            margin-bottom: 10px;
+        }
+
+        p {
+            color: #666;
+        }
+
+        input[type="file"] {
+            margin: 25px 0;
+            width: 100%;
+            padding: 14px;
+            background: #fdf2f8;
+            border-radius: 12px;
+            border: 1px dashed #db2777;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: #db2777;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #be185d;
+        }
+
+        #preview {
+            margin-top: 22px;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+        }
+
+        .photo-item {
+            background: #f9fafb;
+            border-radius: 16px;
+            padding: 10px;
+            box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+        }
+
+        .photo-item img {
+            width: 100%;
+            height: 160px;
+            object-fit: cover;
+            border-radius: 14px;
+        }
+
+        .photo-item a {
+            display: block;
+            margin-top: 8px;
+            color: #db2777;
+            font-size: 13px;
+            word-break: break-all;
+        }
+
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">🐱 CatCloud</div>
+
+    <nav>
+        <button class="menu-btn">Home</button>
+        <button class="menu-btn">My Photos</button>
+        <button class="profile-btn">👤</button>
+        <button class="logout-btn" onclick="logout()">Exit</button>
+    </nav>
+</header>
+
+<div class="page">
+    <div class="card">
+        <h1>Upload Cat Photos 🐱</h1>
+        <p>Choose several cat photos and upload them to Azure Blob Storage</p>
+
+        <input id="catPhoto" type="file" accept="image/*" multiple>
+
+        <button onclick="uploadCatPhotos()">Send Cat Photos</button>
+
+        <p id="status"></p>
+
+        <div id="preview"></div>
+    </div>
+</div>
+
+<script>
+    const API_URL = "http://localhost:8080/files/sas-url";
+
+    async function uploadCatPhotos() {
+        const fileInput = document.getElementById("catPhoto");
+        const status = document.getElementById("status");
+        const preview = document.getElementById("preview");
+
+        const files = fileInput.files;
+
+        if (!files || files.length === 0) {
+            alert("Please choose cat photos");
+            return;
+        }
+
+        preview.innerHTML = "";
+        status.innerText = "Uploading " + files.length + " photo(s)...";
+
+        for (const file of files) {
+
+            try {
+
+                status.innerText =
+                    "Getting secure upload link for " + file.name;
+
+                const uniqueFileName =
+                    Date.now() + "-" + file.name;
+
+                const userId =
+                    localStorage.getItem("userId");
+
+                const sasResponse = await fetch(
+                    `${API_URL}?fileName=${encodeURIComponent(uniqueFileName)}&contentType=${encodeURIComponent(file.type)}&userId=${userId}`
+                );
+
+                if (!sasResponse.ok) {
+                    status.innerText =
+                        "Failed to get SAS URL for " + file.name;
+                    continue;
+                }
+
+                const data = await sasResponse.json();
+
+                const sasUrl = data.sasUrl;
+
+                status.innerText =
+                    "Uploading " + file.name + "...";
+
+                const uploadResponse = await fetch(sasUrl, {
+                    method: "PUT",
+                    headers: {
+                        "x-ms-blob-type": "BlockBlob",
+                        "Content-Type": file.type
+                    },
+                    body: file
+                });
+
+                if (uploadResponse.ok) {
+
+                    const blobName = data.blobName;
+
+                    const readResponse = await fetch(
+                        `http://localhost:8080/files/read-url?blobName=${encodeURIComponent(blobName)}`
+                    );
+
+                    const readUrl = await readResponse.text();
+
+                    preview.innerHTML += `
+    <div class="photo-item">
+        <img src="${readUrl}" alt="Cat photo">
+        <a href="${readUrl}" target="_blank">
+            Open photo
+        </a>
+    </div>
+`;
+                }
+
+            } catch (error) {
+
+                console.error(error);
+
+                status.innerText =
+                    "Server or CORS error";
+            }
+        }
+
+        status.innerText = "Upload finished";
+    }
+
+    function logout() {
+        alert("Logout clicked");
+        window.location.href = "login.html";
+    }
+</script>
+
+</body>
+</html>
