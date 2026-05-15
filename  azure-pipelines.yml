@@ -1,0 +1,54 @@
+trigger:
+  branches:
+    include:
+      - master
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+variables:
+  azureSubscription: 'azure-catcloud-connection'
+  acrName: 'catcloud'
+  acrLoginServer: 'catcloud.azurecr.io'
+  imageName: 'catcloud'
+  webAppName: 'catcloud-app'
+  dockerfilePath: 'Dockerfile'
+  tag: '$(Build.BuildId)'
+
+stages:
+  - stage: CI
+    displayName: Build and Push Docker Image
+    jobs:
+      - job: Build
+        displayName: Build Docker image
+        steps:
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: Build and Push image to ACR
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                az acr login --name $(acrName)
+
+                docker build -f $(dockerfilePath) -t $(acrLoginServer)/$(imageName):$(tag) .
+                docker tag $(acrLoginServer)/$(imageName):$(tag) $(acrLoginServer)/$(imageName):latest
+
+                docker push $(acrLoginServer)/$(imageName):$(tag)
+                docker push $(acrLoginServer)/$(imageName):latest
+
+  - stage: CD
+    displayName: Deploy to Azure App Service
+    dependsOn: CI
+    jobs:
+      - job: Deploy
+        displayName: Deploy container
+        steps:
+          - task: AzureWebAppContainer@1
+            displayName: Deploy to Web App
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              appName: '$(webAppName)'
+              containers: '$(acrLoginServer)/$(imageName):latest'
