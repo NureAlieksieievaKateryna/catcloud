@@ -3,7 +3,7 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://azureserver.postgres.database.azure.com:5432/postgres?user=alekseeva.katay1@gmail.com&password={your_password}&sslmode=require
+    url: jdbc:postgresql://azureserver.postgres.database.azure.com:5432/postgres?user=qwerty.com&password={your_password}&sslmode=require
     username: qwerty
     password: Kate2018
   jackson:
