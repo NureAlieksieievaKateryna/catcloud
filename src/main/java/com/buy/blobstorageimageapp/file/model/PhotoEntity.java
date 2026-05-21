@@ -1,6 +1,5 @@
 package com.buy.blobstorageimageapp.file.model;
 
-import com.azure.core.http.ContentType;
 import com.buy.blobstorageimageapp.user.model.UserEntity;
 import jakarta.persistence.*;
 import lombok.*;

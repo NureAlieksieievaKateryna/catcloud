@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: 123
-      TZ: Europe/Riga
+
       POSTGRES_DB: catcloud
     ports:
       - "5432:5432"
